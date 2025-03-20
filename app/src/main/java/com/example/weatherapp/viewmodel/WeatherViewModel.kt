@@ -2,23 +2,68 @@ package com.example.weatherapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.weatherapp.api.WeatherApi
 import com.example.weatherapp.repository.WeatherRepository
+import com.example.weatherapp.data.ForecastResponse
 import com.example.weatherapp.data.WeatherResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class WeatherViewModel(private val repository: WeatherRepository) : ViewModel() {
-    private val _weather = MutableStateFlow<WeatherResponse?>(null)
-    val weather: StateFlow<WeatherResponse?> = _weather
+sealed class WeatherState {
+    object Loading : WeatherState()
+    data class Success(
+        val weather: WeatherResponse,
+        val forecast: ForecastResponse? = null,
+        val isOffline: Boolean = false
+    ) : WeatherState()
+    data class Error(val message: String) : WeatherState()
+}
+
+class WeatherViewModel(
+    val repository: WeatherRepository,
+    private val api: WeatherApi // Ostaje za detekciju offline moda
+) : ViewModel() {
+    private val _weatherState = MutableStateFlow<WeatherState>(WeatherState.Loading)
+    val weatherState: StateFlow<WeatherState> = _weatherState
+
+    init {
+        viewModelScope.launch {
+            val lastCity = repository.getLastCity()
+            if (lastCity != null) {
+                fetchWeather(lastCity)
+            } else {
+                _weatherState.value = WeatherState.Error("No previous city found")
+            }
+        }
+    }
 
     fun fetchWeather(city: String) {
         viewModelScope.launch {
-            try {
-                val response = repository.getWeather(city)
-                _weather.value = response
-            } catch (e: Exception) {
-                // TODO: Obrada grešaka kasnije
+            _weatherState.value = WeatherState.Loading
+            val weatherResponse = repository.getWeather(city)
+            val forecastResponse = repository.getForecast(city)
+
+            if (weatherResponse != null) {
+                val isOffline = try {
+                    api.getWeather(city, "64c8aba3ef26103a8fe305cc764bbf4b")
+                    false
+                } catch (e: Exception) {
+                    true
+                }
+                _weatherState.value = WeatherState.Success(weatherResponse, forecastResponse, isOffline)
+            } else {
+                val isOffline = try {
+                    api.getWeather(city, "64c8aba3ef26103a8fe305cc764bbf4b")
+                    false
+                } catch (e: Exception) {
+                    true
+                }
+                if (isOffline) {
+                    _weatherState.value = WeatherState.Error("No internet connection and no cached data for $city")
+                } else {
+                    _weatherState.value = WeatherState.Error("Failed to fetch data for $city")
+                }
             }
         }
     }

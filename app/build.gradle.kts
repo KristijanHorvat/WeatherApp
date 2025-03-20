@@ -66,6 +66,7 @@ dependencies {
     ksp(libs.androidx.room.compiler.v250)
     implementation(libs.androidx.room.ktx)
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.lifecycle.runtime.ktx.v270)
     implementation(libs.androidx.activity.ktx)
 

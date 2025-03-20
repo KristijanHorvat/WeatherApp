@@ -1,6 +1,8 @@
 package com.example.weatherapp.di
 
+import androidx.room.Room
 import com.example.weatherapp.api.WeatherApi
+import com.example.weatherapp.data.AppDatabase
 import com.example.weatherapp.repository.WeatherRepository
 import com.example.weatherapp.viewmodel.WeatherViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -16,6 +18,11 @@ val appModule = module {
             .build()
             .create(WeatherApi::class.java)
     }
-    single { WeatherRepository(get()) }
-    viewModel { WeatherViewModel(get()) }
+    single {
+        Room.databaseBuilder(get(), AppDatabase::class.java, "weather_db")
+            .build()
+    }
+    single { get<AppDatabase>().lastCityDao() }
+    single { WeatherRepository(get<WeatherApi>(), get()) }
+    viewModel { WeatherViewModel(get(), get()) }
 }
