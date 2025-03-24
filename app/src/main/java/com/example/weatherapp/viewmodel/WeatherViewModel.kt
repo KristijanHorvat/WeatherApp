@@ -22,7 +22,7 @@ sealed class WeatherState {
 
 class WeatherViewModel(
     val repository: WeatherRepository,
-    private val api: WeatherApi // Ostaje za detekciju offline moda
+    private val api: WeatherApi
 ) : ViewModel() {
     private val _weatherState = MutableStateFlow<WeatherState>(WeatherState.Loading)
     val weatherState: StateFlow<WeatherState> = _weatherState

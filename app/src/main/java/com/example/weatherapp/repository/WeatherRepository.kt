@@ -11,7 +11,6 @@ class WeatherRepository(
     suspend fun getWeather(city: String): WeatherResponse {
         return try {
             val response = api.getWeather(city, APIKey)
-            // Spremi trenutne podatke u Room
             dao.insertCurrentWeather(
                 CurrentWeatherEntity(
                     cityName = city,

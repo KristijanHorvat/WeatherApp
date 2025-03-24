@@ -7,13 +7,18 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WindPower
@@ -27,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -58,8 +64,11 @@ fun WeatherAppScreen(
     val weatherState by viewModel.weatherState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scrollState = rememberScrollState()
 
     var cityInput by remember { mutableStateOf("") }
+    var isSearchExpanded by remember { mutableStateOf(false) } // State for expand/collapse
+
     LaunchedEffect(Unit) {
         val lastCity = viewModel.repository.getLastCity()
         if (lastCity != null) {
@@ -94,6 +103,7 @@ fun WeatherAppScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -123,121 +133,79 @@ fun WeatherAppScreen(
                     }
                 }
 
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            TextField(
-                                value = cityInput,
-                                onValueChange = { cityInput = it },
-                                label = { Text("Enter city") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search"
-                                    )
-                                },
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = {
-                                    if (cityInput.isNotEmpty()) {
-                                        viewModel.fetchWeather(cityInput)
-                                    }
-                                },
-                                modifier = Modifier.align(Alignment.End),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Search")
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Popular cities:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            ) {
-                                items(popularCities) { city ->
-                                    SuggestionChip(
-                                        onClick = {
-                                            cityInput = city
-                                            viewModel.fetchWeather(city)
-                                        },
-                                        label = { Text(city) }
-                                    )
-                                }
-                            }
+                // Replace the old search card with the expandable version
+                ExpandableSearchCard(
+                    cityInput = cityInput,
+                    onCityInputChange = { cityInput = it },
+                    onSearchClick = {
+                        if (cityInput.isNotEmpty()) {
+                            viewModel.fetchWeather(cityInput)
+                            isSearchExpanded = false // Optionally collapse after search
                         }
-                    }
-                }
+                    },
+                    popularCities = popularCities,
+                    onPopularCityClick = { city ->
+                        cityInput = city
+                        viewModel.fetchWeather(city)
+                        isSearchExpanded = false // Optionally collapse after selection
+                    },
+                    isExpanded = isSearchExpanded,
+                    onToggleExpand = { isSearchExpanded = !isSearchExpanded }
+                )
 
-                Box(modifier = Modifier.weight(1f)) {
-                    when (weatherState) {
-                        is WeatherState.Loading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.Center),
-                                color = Color.White
-                            )
-                        }
-                        is WeatherState.Success -> {
-                            val successState = weatherState as WeatherState.Success
-                            Column {
-                                WeatherContent(weather = successState.weather, isOffline = successState.isOffline)
-                                successState.forecast?.let { forecast ->
-                                    ForecastContent(forecast = forecast)
-                                }
-                            }
-                            if (successState.isOffline) {
-                                LaunchedEffect(Unit) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "Offline mode: Showing cached data",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
+                when (weatherState) {
+                    is WeatherState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            color = Color.White
+                        )
+                    }
+                    is WeatherState.Success -> {
+                        val successState = weatherState as WeatherState.Success
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            WeatherContent(weather = successState.weather, isOffline = successState.isOffline)
+                            successState.forecast?.let { forecast ->
+                                ForecastContent(forecast = forecast)
+                                TemperatureGraph(forecast = forecast)
                             }
                         }
-                        is WeatherState.Error -> {
-                            LaunchedEffect(weatherState) {
+                        if (successState.isOffline) {
+                            LaunchedEffect(Unit) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        message = (weatherState as WeatherState.Error).message,
+                                        message = "Offline mode: Showing cached data",
                                         duration = SnackbarDuration.Short
                                     )
                                 }
                             }
                         }
                     }
+                    is WeatherState.Error -> {
+                        LaunchedEffect(weatherState) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = (weatherState as WeatherState.Error).message,
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(80.dp))
             }
+
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
             )
         }
     }
 }
-
 @Composable
 fun WeatherContent(weather: WeatherResponse, isOffline: Boolean) {
     val animatedAlpha = remember { Animatable(0f) }
@@ -268,6 +236,7 @@ fun WeatherContent(weather: WeatherResponse, isOffline: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         CurrentWeatherCard(weather)
+        WeatherDescriptionCard(weather)
         if (isOffline) {
             Text(
                 text = "Offline Mode",
@@ -499,5 +468,235 @@ fun WeatherDetailItem(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
             ),
             color = Color.White
         )
+    }
+}
+fun getWeatherDescriptionDetail(weather: WeatherResponse): String {
+    return when {
+        weather.main.humidity > 80 -> "high humidity with potential for precipitation"
+        weather.wind.speed > 5 -> "windy conditions with moderate air movement"
+        weather.main.temp > 30 -> "hot weather that may require hydration and sun protection"
+        weather.main.temp < 10 -> "cold temperatures, recommend warm clothing"
+        else -> "generally mild and comfortable weather conditions"
+    }
+}
+@Composable
+fun WeatherDescriptionCard(weather: WeatherResponse) {
+    val animatedScale = remember { Animatable(0.8f) }
+
+    LaunchedEffect(weather) {
+        animatedScale.animateTo(
+            targetValue = 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .scale(animatedScale.value),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Weather Description",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Today's weather is ${weather.weather[0].description}. " +
+                        "The temperature feels like ${weather.main.temp.toInt()}°C. " +
+                        "Current atmospheric conditions suggest ${getWeatherDescriptionDetail(weather)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+@Composable
+fun TemperatureGraph(forecast: ForecastResponse) {
+    val dailyForecast = forecast.list
+        .groupBy { item ->
+            java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(item.dt * 1000))
+        }
+        .map { it.value.first() }
+        .take(5)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = "Temperature Next 5 Days",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                dailyForecast.forEach { forecastItem ->
+                    val temp = forecastItem.main.temp.toInt()
+                    val maxTemp = dailyForecast.maxOf { it.main.temp }.toInt()
+                    val minTemp = dailyForecast.minOf { it.main.temp }.toInt()
+                    val heightFactor = if (maxTemp == minTemp) 1f else
+                        (temp - minTemp).toFloat() / (maxTemp - minTemp).toFloat()
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(30.dp)
+                                .height((100.dp * heightFactor).coerceAtLeast(20.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color(0xFFFF6B6B), Color(0xFFFECA57))
+                                    ),
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "${temp}°C",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White
+                        )
+                        Text(
+                            text = java.text.SimpleDateFormat("EEE").format(java.util.Date(forecastItem.dt * 1000)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun ExpandableSearchCard(
+    cityInput: String,
+    onCityInputChange: (String) -> Unit,
+    onSearchClick: () -> Unit,
+    popularCities: List<String>,
+    onPopularCityClick: (String) -> Unit,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Search City",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Expand/Collapse",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                ) {
+                    TextField(
+                        value = cityInput,
+                        onValueChange = onCityInputChange,
+                        label = { Text("Enter city") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search"
+                            )
+                        },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = onSearchClick,
+                        modifier = Modifier.align(Alignment.End),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Search")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Popular cities:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        items(popularCities) { city ->
+                            SuggestionChip(
+                                onClick = { onPopularCityClick(city) },
+                                label = { Text(city) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
