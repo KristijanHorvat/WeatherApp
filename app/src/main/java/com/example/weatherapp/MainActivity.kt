@@ -67,7 +67,7 @@ fun WeatherAppScreen(
     val scrollState = rememberScrollState()
 
     var cityInput by remember { mutableStateOf("") }
-    var isSearchExpanded by remember { mutableStateOf(false) } // State for expand/collapse
+    var isSearchExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val lastCity = viewModel.repository.getLastCity()
@@ -133,21 +133,20 @@ fun WeatherAppScreen(
                     }
                 }
 
-                // Replace the old search card with the expandable version
                 ExpandableSearchCard(
                     cityInput = cityInput,
                     onCityInputChange = { cityInput = it },
                     onSearchClick = {
                         if (cityInput.isNotEmpty()) {
                             viewModel.fetchWeather(cityInput)
-                            isSearchExpanded = false // Optionally collapse after search
+                            isSearchExpanded = false
                         }
                     },
                     popularCities = popularCities,
                     onPopularCityClick = { city ->
                         cityInput = city
                         viewModel.fetchWeather(city)
-                        isSearchExpanded = false // Optionally collapse after selection
+                        isSearchExpanded = false
                     },
                     isExpanded = isSearchExpanded,
                     onToggleExpand = { isSearchExpanded = !isSearchExpanded }

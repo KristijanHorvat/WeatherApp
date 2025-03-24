@@ -2,6 +2,7 @@ package com.example.weatherapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.weatherapp.BuildConfig
 import com.example.weatherapp.api.WeatherApi
 import com.example.weatherapp.repository.WeatherRepository
 import com.example.weatherapp.data.ForecastResponse
@@ -26,7 +27,7 @@ class WeatherViewModel(
 ) : ViewModel() {
     private val _weatherState = MutableStateFlow<WeatherState>(WeatherState.Loading)
     val weatherState: StateFlow<WeatherState> = _weatherState
-
+    val apiKey = BuildConfig.WEATHER_API_KEY
     init {
         viewModelScope.launch {
             val lastCity = repository.getLastCity()
@@ -46,7 +47,7 @@ class WeatherViewModel(
 
             if (weatherResponse != null) {
                 val isOffline = try {
-                    api.getWeather(city, "64c8aba3ef26103a8fe305cc764bbf4b")
+                    api.getWeather(city, apiKey)
                     false
                 } catch (e: Exception) {
                     true
@@ -54,7 +55,7 @@ class WeatherViewModel(
                 _weatherState.value = WeatherState.Success(weatherResponse, forecastResponse, isOffline)
             } else {
                 val isOffline = try {
-                    api.getWeather(city, "64c8aba3ef26103a8fe305cc764bbf4b")
+                    api.getWeather(city, apiKey)
                     false
                 } catch (e: Exception) {
                     true

@@ -1,10 +1,7 @@
 package com.example.weatherapp.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import androidx.room.Database
-import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
-import androidx.room.TypeConverters
 import com.google.gson.Gson
 
 data class WeatherResponse(

@@ -1,5 +1,6 @@
 package com.example.weatherapp.repository
 
+import com.example.weatherapp.BuildConfig
 import com.example.weatherapp.api.WeatherApi
 import com.example.weatherapp.data.*
 
@@ -7,10 +8,10 @@ class WeatherRepository(
     private val api: WeatherApi,
     private val dao: LastCityDao
 ) {
-    private val APIKey = "64c8aba3ef26103a8fe305cc764bbf4b"
+    val apiKey = BuildConfig.WEATHER_API_KEY
     suspend fun getWeather(city: String): WeatherResponse {
         return try {
-            val response = api.getWeather(city, APIKey)
+            val response = api.getWeather(city, apiKey)
             dao.insertCurrentWeather(
                 CurrentWeatherEntity(
                     cityName = city,
@@ -40,7 +41,7 @@ class WeatherRepository(
 
     suspend fun getForecast(city: String): ForecastResponse {
         return try {
-            val response = api.getForecast(city, APIKey)
+            val response = api.getForecast(city, apiKey)
             val forecastEntities = response.list.map {
                 ForecastEntity(
                     cityName = city,

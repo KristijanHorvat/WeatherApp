@@ -1,3 +1,11 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val properties = Properties()
+val propertiesFile = rootProject.file("local.properties")
+if (propertiesFile.exists()) {
+    properties.load(FileInputStream(propertiesFile))
+}
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,8 +25,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
 
+        buildConfigField("String", "WEATHER_API_KEY", "\"${properties.getProperty("WEATHER_API_KEY")}\"")
+
+    }
+    buildFeatures {
+        buildConfig = true
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
