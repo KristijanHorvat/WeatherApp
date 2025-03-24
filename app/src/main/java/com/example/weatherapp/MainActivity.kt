@@ -1,5 +1,6 @@
 package com.example.weatherapp
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -277,19 +278,20 @@ fun WeatherContent(weather: WeatherResponse, isOffline: Boolean) {
         }
     }
 }
+@SuppressLint("SimpleDateFormat")
 @Composable
 fun ForecastContent(forecast: ForecastResponse) {
     val dailyForecast = forecast.list
         .groupBy { item ->
             java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(item.dt * 1000))
         }
-        .map { it.value.first() } // Uzmi prvi zapis za svaki dan
-        .take(5) // Ograniči na 5 dana
+        .map { it.value.first() }
+        .take(5)
 
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp, horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(dailyForecast) { forecastItem ->
